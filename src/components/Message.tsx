@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 import { assets } from '@/assets/assets';
 import { Role } from '@/interfaces/Message';
@@ -90,7 +92,21 @@ export const Message = ({ role, content }: MessageProps) => {
 								className='h-9 w-9 p-1 border border-white/15 rounded-full bg-red-100'
 							/>
 							<div className='space-y-4 w-full overflow-auto leading-6'>
-								<Markdown>{content}</Markdown>
+								<Markdown
+									remarkPlugins={[remarkGfm]}
+									rehypePlugins={[rehypeRaw]}
+									components={{
+										table: ({ children }) => (
+											<table className='table-auto w-full text-left text-sm mt-4 mb-6 border-gray-500'>
+												{children}
+											</table>
+										),
+										thead: ({ children }) => <thead className='bg-[#9e2255] text-white'>{children}</thead>,
+										th: ({ children }) => <th className='border border-gray-600 px-4 py-2'>{children}</th>,
+										td: ({ children }) => <td className='border border-gray-600 leading-6 px-4 py-2'>{children}</td>,
+									}}>
+									{content}
+								</Markdown>
 							</div>
 						</>
 					)}
