@@ -10,9 +10,8 @@ export interface ChatItem {
 }
 
 export const chatTypes = [
-	{ label: 'Documento', value: 'docs' },
-	{ label: 'Analista QA', value: 'qa' },
 	{ label: 'General', value: 'general' },
+	{ label: 'Analista QA', value: 'qa' },
 ] as const;
 
 export type ChatType = (typeof chatTypes)[number]['value'];

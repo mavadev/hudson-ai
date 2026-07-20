@@ -11,6 +11,7 @@ interface ChatRequestBody {
 	chatId: string;
 	prompt: string;
 	type: ChatType;
+	userId: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -21,52 +22,53 @@ export async function POST(req: NextRequest) {
 		}
 
 		// Obtenemos el body
-		const { chatId, prompt, type }: ChatRequestBody = await req.json();
+		const { chatId, prompt: userMessage, type }: ChatRequestBody = await req.json();
+
+		await connectDB();
 
 		// Obtenemos el chat correspondiente al usuario
-		await connectDB();
 		const chat = await Chat.findOne({ _id: chatId, user: userId });
 		if (!chat) {
 			return NextResponse.json({ error: 'Chat no encontrado' }, { status: 404 });
 		}
 
+		const isFirstMessage = chat.messages.length === 0;
+
 		// Creamos el mensaje del usuario
 		const userPrompt: IMessage = {
 			role: 'user',
-			content: prompt,
+			content: userMessage,
 			timestamp: new Date(),
 		};
 		chat.messages.push(userPrompt);
 
 		// Llamamos a la IA para respuesta
-		const { data: dataResponse } = await axios.post<{ response: string }>(`${process.env.API_URL}/chat/${type}`!, {
-			user_message: prompt,
+		const {
+			data: { response: assistantResponse },
+		} = await axios.post<{ response: string }>(`${process.env.API_URL}/chat/${type}`!, {
+			user_message: userMessage,
 		});
 
 		const assistantMessage: IMessage = {
 			role: 'assistant',
-			content: dataResponse.response,
+			content: assistantResponse,
 			timestamp: new Date(),
 		};
 		chat.messages.push(assistantMessage);
 
-		// Enviamos solo el mensaje tenga un titulo establecido
-		if (chat.messages.length > 2) {
-			// Guardamos el chat
-			await chat.save();
-			return NextResponse.json({ message: assistantMessage }, { status: 200 });
+		if (isFirstMessage) {
+			const {
+				data: { response: titleResponse },
+			} = await axios.post<{ response: string }>(`${process.env.API_URL}/chat/general`!, {
+				user_message:
+					'Dime en un titulo corto para el inicio de esta conversación (solo el titulo sin comillas): ' +
+					assistantResponse,
+			});
+			chat.name = titleResponse;
 		}
 
-		// Llamamos a la IA para respuesta de titulo solo si es la primera respuesta de la IA para el chat
-		const { data: dataTitle } = await axios.post<{ response: string }>(`${process.env.API_URL}/chat/general`!, {
-			user_message:
-				dataResponse.response + '. Dime en un titulo corto para esta conversación, solo el titulo sin comillas',
-		});
-
-		chat.name = dataTitle.response;
 		await chat.save();
-
-		return NextResponse.json({ message: assistantMessage, title: dataTitle.response }, { status: 200 });
+		return NextResponse.json({ message: assistantMessage, title: chat.name }, { status: 200 });
 	} catch (error: unknown) {
 		console.error('Error procesando el chat:', error);
 		return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -23,7 +23,7 @@ interface AppContextProps {
 	sendPromptToAI: (
 		chatId: string,
 		prompt: string,
-		typePrompt: ChatType
+		typePrompt: ChatType,
 	) => Promise<{ message: Message; title?: string }>;
 }
 
@@ -36,7 +36,7 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
 
 	const [chats, setChats] = useState<ChatItem[]>([]);
 	const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
-	const [type, setType] = useState<ChatType>('docs');
+	const [type, setType] = useState<ChatType>('general');
 
 	// Obtener chats
 	const fetchChats = useCallback(async () => {
@@ -72,14 +72,14 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
 					prev && {
 						...prev,
 						name,
-					}
+					},
 			);
 
 			// Renombramos el chat en la base de datos
 			await chatService.renameChat(chatId, name);
 			await fetchChats();
 		},
-		[fetchChats]
+		[fetchChats],
 	);
 
 	// Eliminar chat
@@ -93,7 +93,7 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
 			await chatService.deleteChat(chatId);
 			await fetchChats();
 		},
-		[fetchChats]
+		[fetchChats],
 	);
 
 	// Enviar prompt a IA
@@ -101,7 +101,7 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
 		async (chatId: string, prompt: string, typePrompt: ChatType): Promise<{ message: Message; title?: string }> => {
 			return await chatService.sendPrompt(chatId, prompt, typePrompt);
 		},
-		[]
+		[],
 	);
 
 	// Cargar los chats al iniciar cuando el usuario esté cargado
