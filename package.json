@@ -1,37 +1,49 @@
 {
-  "name": "my-ai-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@clerk/nextjs": "^6.21.0",
-    "axios": "^1.9.0",
-    "mongoose": "^8.15.2",
-    "next": "^15.3.6",
-    "prismjs": "^1.30.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-hot-toast": "^2.5.2",
-    "react-markdown": "^10.1.0",
-    "rehype-raw": "^7.0.0",
-    "remark-gfm": "^4.0.1",
-    "svix": "^1.67.0"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/prismjs": "^1.26.5",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.3",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+	"name": "hudson-ai",
+	"version": "1.0.0",
+	"description": "Conversational AI assistant built with Next.js, Clerk, MongoDB and Gemini.",
+	"private": true,
+	"author": "Gianmarco Chistama",
+	"license": "MIT",
+	"keywords": [
+		"nextjs",
+		"gemini",
+		"ai",
+		"chatbot",
+		"mongodb",
+		"clerk",
+		"typescript"
+	],
+	"scripts": {
+		"dev": "next dev --turbopack",
+		"build": "next build",
+		"start": "next start",
+		"lint": "next lint"
+	},
+	"dependencies": {
+		"@clerk/nextjs": "^6.21.0",
+		"axios": "^1.9.0",
+		"mongoose": "^8.15.2",
+		"next": "^15.3.6",
+		"prismjs": "^1.30.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"react-hot-toast": "^2.5.2",
+		"react-markdown": "^10.1.0",
+		"rehype-raw": "^7.0.0",
+		"remark-gfm": "^4.0.1",
+		"svix": "^1.67.0"
+	},
+	"devDependencies": {
+		"@eslint/eslintrc": "^3",
+		"@tailwindcss/postcss": "^4",
+		"@types/node": "^20",
+		"@types/prismjs": "^1.26.5",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"eslint": "^9",
+		"eslint-config-next": "15.3.3",
+		"tailwindcss": "^4",
+		"typescript": "^5"
+	}
 }

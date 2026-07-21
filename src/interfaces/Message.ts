@@ -1,7 +1,7 @@
-export type Role = 'user' | 'assistant' | 'system';
+export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface Message {
-	role: Role;
+	role: MessageRole;
 	content: string;
 	timestamp: number;
 }

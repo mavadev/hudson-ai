@@ -18,11 +18,29 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 		}
 
-		// Actualizar el nombre del chat
-		await connectDB();
-		await Chat.findOneAndUpdate({ _id: chatId, user: userId }, { name });
+		if (!chatId || !name?.trim()) {
+			return NextResponse.json({ error: 'El identificador y el nombre son obligatorios' }, { status: 400 });
+		}
 
-		return NextResponse.json({ message: 'Chat renombrado' }, { status: 200 });
+		await connectDB();
+		// Actualizar el nombre del chat
+		const updatedChat = await Chat.findOneAndUpdate(
+			{ _id: chatId, user: userId },
+			{ name: name.trim() },
+			{ new: true },
+		);
+
+		if (!updatedChat) {
+			return NextResponse.json({ error: 'Chat no encontrado o no autorizado' }, { status: 404 });
+		}
+
+		return NextResponse.json(
+			{
+				message: 'Chat renombrado',
+				data: updatedChat,
+			},
+			{ status: 200 },
+		);
 	} catch (error: unknown) {
 		console.error('Error al renombrar el chat:', error);
 		return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

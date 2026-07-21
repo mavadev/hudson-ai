@@ -1,19 +1,25 @@
 import './prism.css';
 import './globals.css';
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Toaster } from 'react-hot-toast';
 import { ClerkProvider } from '@clerk/nextjs';
+import { Toaster } from 'react-hot-toast';
+
 import { AppContextProvider } from '@/context/AppContext';
 
-const interFont = Inter({
+const inter = Inter({
 	subsets: ['latin'],
 	variable: '--font-inter',
 });
 
 export const metadata: Metadata = {
-	title: 'Compartamos Banco IA',
-	description: 'Full Stack Project with Next.js',
+	title: {
+		default: 'Hudson AI',
+		template: '%s | Hudson AI',
+	},
+	description:
+		'Modern conversational AI assistant powered by Gemini with specialized QA analysis, authentication, and persistent chat history.',
 	icons: {
 		icon: '/favicon.ico',
 		shortcut: '/favicon-96x96.png',
@@ -29,16 +35,17 @@ export default function RootLayout({
 }>) {
 	return (
 		<ClerkProvider>
-			<html lang='en'>
-				<body className={`${interFont.className} antialiased`}>
+			<html lang='es'>
+				<body className={`${inter.variable} antialiased`}>
 					<AppContextProvider>
+						{children}
+
 						<Toaster
+							position='top-right'
 							toastOptions={{
-								success: { style: { background: 'black', color: 'white' } },
-								error: { style: { background: 'black', color: 'white' } },
+								className: 'hudson-toast',
 							}}
 						/>
-						{children}
 					</AppContextProvider>
 				</body>
 			</html>

@@ -1,9 +1,9 @@
 'use client';
+
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 
-import { assets } from '@/assets/assets';
-import { Message } from '@/interfaces/Message';
+import assets from '@/assets';
 import { Sidebar } from '@/components/Sidebar';
 import { PromptBox } from '@/components/PromptBox';
 import { useAppContext } from '@/context/AppContext';
@@ -11,108 +11,154 @@ import { Message as MessageComponent } from '@/components/Message';
 
 export default function Home() {
 	const { selectedChat } = useAppContext();
+
 	const [expand, setExpand] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
-	const [messages, setMessages] = useState<Message[]>([]);
 
+	const messages = selectedChat?.messages ?? [];
 	const containerRef = useRef<HTMLDivElement>(null);
+	const shouldAutoScrollRef = useRef(true);
+
+	const handleScroll = () => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+
+		shouldAutoScrollRef.current = distanceFromBottom < 120;
+	};
+
+	const lastMessage = messages.at(-1);
+
+	const scrollKey = [
+		selectedChat?._id ?? '',
+		messages.length,
+		lastMessage?.content.length ?? 0,
+		isLoading ? 'loading' : 'idle',
+	].join(':');
 
 	useEffect(() => {
-		if (selectedChat) {
-			setMessages(selectedChat.messages);
-		}
-	}, [selectedChat]);
+		const container = containerRef.current;
 
-	useEffect(() => {
-		if (containerRef.current) {
-			containerRef.current.scrollTo({
-				top: containerRef.current.scrollHeight,
-				behavior: 'smooth',
-			});
-		}
-	}, [messages]);
+		if (!container || !shouldAutoScrollRef.current) return;
+
+		container.scrollTo({
+			top: container.scrollHeight,
+			behavior: 'smooth',
+		});
+	}, [scrollKey]);
 
 	return (
-		<div className='flex h-screen'>
+		<div className='flex h-dvh overflow-hidden'>
 			<Sidebar
 				expand={expand}
 				setExpand={setExpand}
 			/>
 
-			<div
-				className={`flex-1 flex flex-col items-center justify-center px-4 pb-8 bg-[#292a2d] text-white relative ${
-					messages.length === 0 ? 'gap-10' : ''
-				}`}>
-				{/* Responsive mobile header */}
-				<div className='md:hidden absolute px-4 top-6 flex items-center justify-between w-full'>
+			<main className='relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[#292a2d] px-4 text-white'>
+				{/* Encabezado móvil */}
+				<header className='absolute top-6 z-20 flex w-full items-center justify-between px-4 md:hidden'>
+					<button
+						type='button'
+						onClick={() => setExpand(previousExpand => !previousExpand)}
+						aria-label='Abrir menú lateral'
+						className='cursor-pointer'>
+						<Image
+							alt=''
+							className='rotate-180'
+							src={assets.menu}
+						/>
+					</button>
+
 					<Image
-						alt='Menu Icon'
-						className='rotate-180 cursor-pointer'
-						onClick={() => setExpand(!expand)}
-						src={assets.menu_icon}
-					/>
-					<Image
-						alt='Chat Icon'
+						alt='Hudson AI'
 						className='opacity-70'
-						src={assets.chat_icon}
+						src={assets.phone}
+					/>
+				</header>
+
+				{/* Contenido central */}
+				{messages.length === 0 ? (
+					<section className='flex min-h-0 flex-1 flex-col items-center justify-center gap-4'>
+						<Image
+							alt='Hudson AI'
+							src={assets.hudson_logo}
+							className='h-12 w-12'
+							priority
+						/>
+
+						<div>
+							<h1 className='max-w-md text-balance text-center text-2xl font-medium'>Bienvenido, soy Hudson</h1>
+
+							<p className='mt-2 text-center text-sm text-[#b1b1b1]'>¿En qué puedo ayudarte hoy?</p>
+						</div>
+					</section>
+				) : (
+					<>
+						{/* Nombre del chat */}
+						<div className='absolute left-1/2 top-7 z-10 -translate-x-1/2'>
+							<p className='max-w-xs truncate rounded-lg border border-transparent px-2 py-1 font-semibold hover:border-gray-500/50'>
+								{selectedChat?.name}
+							</p>
+						</div>
+
+						{/* Solo esta sección tiene scroll */}
+						<section
+							ref={containerRef}
+							onScroll={handleScroll}
+							aria-label='Conversación actual'
+							className='mt-20 min-h-0 w-full flex-1 overflow-y-auto'>
+							<div className='mx-auto flex w-full max-w-3xl flex-col pb-6'>
+								{messages.map((message, index) => (
+									<MessageComponent
+										key={`${message.timestamp}-${message.role}-${index}`}
+										role={message.role}
+										content={message.content}
+									/>
+								))}
+
+								{isLoading && (
+									<div
+										className='flex w-full gap-4 pb-8'
+										aria-label='Hudson está generando una respuesta'>
+										<Image
+											alt='Hudson AI'
+											src={assets.hudson_logo}
+											className='h-12 w-12 rounded-full border border-gray-600 bg-gray-800 p-2'
+										/>
+
+										<div className='flex items-center justify-center gap-1'>
+											<span className='h-1 w-1 animate-bounce rounded-full bg-white' />
+											<span className='h-1 w-1 animate-bounce rounded-full bg-white delay-100' />
+											<span className='h-1 w-1 animate-bounce rounded-full bg-white delay-200' />
+										</div>
+									</div>
+								)}
+							</div>
+						</section>
+					</>
+				)}
+
+				{/* El prompt permanece abajo y no entra al scroll */}
+				<div className='flex shrink-0 justify-center'>
+					<PromptBox
+						isLoading={isLoading}
+						setIsLoading={setIsLoading}
 					/>
 				</div>
 
-				{/* Messages */}
-				{messages.length === 0 ? (
-					<div className='flex flex-col items-center gap-4'>
-						<Image
-							alt='Model IA'
-							src={assets.logo_icon}
-							className='w-14 p-2 bg-red-100 rounded-full'
-						/>
-						<div>
-							<h1 className='text-2xl font-medium max-w-md text-center'>
-								Bienvenido, soy tu asistente de IA Compartamos Banco
-							</h1>
-							<p className='text-sm text-[#b1b1b1] mt-2 text-center'>Inicia una conversación conmigo</p>
-						</div>
-					</div>
-				) : (
-					<div
-						ref={containerRef}
-						className='relative flex flex-col items-center justify-start w-full mt-20 max-h-[80vh] overflow-y-auto pb-10'>
-						<p className='fixed top-8 border border-transparent hover:border-gray-500/50 py-1 px-2 rounded-lg font-semibold mb-6'>
-							{selectedChat?.name}
-						</p>
-
-						{messages.map((message, index) => (
-							<MessageComponent
-								key={index}
-								role={message.role}
-								content={message.content}
-							/>
-						))}
-
-						{isLoading && (
-							<div className='flex gap-4 max-w-3xl w-full py-3'>
-								<Image
-									alt='Logo'
-									className='h-9 w-9 p-1 border border-white/15 rounded-full bg-red-100'
-									src={assets.logo_icon}
-								/>
-								<div className='loader flex justify-center items-center gap-1'>
-									<div className='w-1 h-1 rounded-full bg-white animate-bounce'></div>
-									<div className='w-1 h-1 rounded-full bg-white animate-bounce delay-100'></div>
-									<div className='w-1 h-1 rounded-full bg-white animate-bounce delay-200'></div>
-								</div>
-							</div>
-						)}
-					</div>
-				)}
-
-				<PromptBox
-					isLoading={isLoading}
-					setIsLoading={setIsLoading}
-				/>
-
-				<p className='text-xs absolute bottom-5 text-gray-500'>Desarrollado por Compartamos Banco</p>
-			</div>
+				<footer className='shrink-0 pb-3 text-center text-xs text-gray-500'>
+					Desarrollado por{' '}
+					<a
+						target='_blank'
+						rel='noreferrer'
+						href='https://github.com/mavadev'
+						className='hover:underline'>
+						Gianmarco Chistama
+					</a>
+					.
+				</footer>
+			</main>
 		</div>
 	);
 }

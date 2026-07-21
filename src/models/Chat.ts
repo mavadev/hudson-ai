@@ -1,13 +1,11 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
-// Exportamos el modelo de Mensaje
 export interface IMessage {
 	role: 'user' | 'assistant' | 'system';
 	content: string;
-	timestamp: Date;
+	timestamp: number;
 }
 
-// Exportamos el modelo de Chat
 export interface IChat extends Document {
 	name: string;
 	messages: IMessage[];
@@ -16,26 +14,51 @@ export interface IChat extends Document {
 	updatedAt: Date;
 }
 
-// Definimos el schema de mensaje
-const MessageSchema: Schema<IMessage> = new Schema(
+const MessageSchema = new Schema<IMessage>(
 	{
-		role: { type: String, enum: ['user', 'assistant', 'system'], required: true },
-		content: { type: String, required: true },
-		timestamp: { type: Date, default: Date.now },
+		role: {
+			type: String,
+			enum: ['user', 'assistant', 'system'],
+			required: true,
+		},
+		content: {
+			type: String,
+			required: true,
+			trim: true,
+		},
+		timestamp: {
+			type: Number,
+			default: Date.now,
+		},
 	},
-	{ _id: false }
+	{
+		_id: false,
+	},
 );
 
-// Definimos el schema de chat
-const ChatSchema: Schema<IChat> = new Schema(
+const ChatSchema = new Schema<IChat>(
 	{
-		name: { type: String, required: true },
-		messages: { type: [MessageSchema], default: [] },
-		user: { type: String, ref: 'User', required: true },
+		name: {
+			type: String,
+			required: true,
+			trim: true,
+			default: 'Nuevo chat',
+		},
+		messages: {
+			type: [MessageSchema],
+			default: [],
+		},
+		user: {
+			type: String,
+			required: true,
+			index: true,
+		},
 	},
-	{ timestamps: true }
+	{
+		timestamps: true,
+	},
 );
 
-// Creamos y exportamos el modelo de Chat
 export const Chat: Model<IChat> = mongoose.models.Chat || mongoose.model<IChat>('Chat', ChatSchema);
+
 export default Chat;

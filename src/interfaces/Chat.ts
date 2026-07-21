@@ -1,10 +1,10 @@
 import { Message } from './Message';
 
-export interface ChatItem {
+export interface Chat {
 	_id: string;
 	name: string;
 	messages: Message[];
-	user: string;
+	userId: string;
 	createdAt: string;
 	updatedAt: string;
 }

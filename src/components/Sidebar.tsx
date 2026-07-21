@@ -3,8 +3,8 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { useClerk, UserButton } from '@clerk/nextjs';
 
+import assets from '@/assets';
 import { ChatLabel } from './ChatLabel';
-import { assets } from '@/assets/assets';
 import { useAppContext } from '@/context/AppContext';
 
 interface SidebarProps {
@@ -27,8 +27,8 @@ export const Sidebar = ({ expand, setExpand }: SidebarProps) => {
 				<header className={`flex ${expand ? 'flex-row gap-10' : 'flex-col items-center gap-8'}`}>
 					<Image
 						alt='logo'
-						className={`${expand ? 'w-36' : 'w-10 p-1 bg-red-100'} rounded-full`}
-						src={expand ? assets.logo_text2 : assets.logo_icon}
+						className={`${expand ? 'w-36 p-2' : 'w-10 p-1'}`}
+						src={expand ? assets.hudson_white : assets.hudson_logo}
 					/>
 					<button
 						onClick={() => setExpand(!expand)}
@@ -36,12 +36,12 @@ export const Sidebar = ({ expand, setExpand }: SidebarProps) => {
 						<Image
 							alt='menu'
 							className='md:hidden'
-							src={assets.menu_icon}
+							src={assets.sidebar_close}
 						/>
 						<Image
 							alt='menu'
 							className='hidden md:block w-7'
-							src={expand ? assets.sidebar_close_icon : assets.sidebar_icon}
+							src={expand ? assets.sidebar_close : assets.sidebar_open}
 						/>
 						<div
 							className={`absolute w-max ${
@@ -61,13 +61,13 @@ export const Sidebar = ({ expand, setExpand }: SidebarProps) => {
 					onClick={createNewChat}
 					className={`mt-8 flex items-center justify-center cursor-pointer ${
 						expand
-							? 'bg-[#e02c77] hover:opacity-90 rounded-2xl gap-2 py-2.5 px-3 w-max'
+							? 'bg-amber-800 hover:opacity-90 rounded-2xl gap-2 py-2.5 px-3 w-max'
 							: 'group relative h-9 w-9 mx-auto hover:bg-gray-500/30 rounded-lg'
 					}`}>
 					<Image
 						alt='Nuevo Chat'
 						className={expand ? 'w-6' : 'w-7'}
-						src={expand ? assets.chat_icon : assets.chat_icon_dull}
+						src={expand ? assets.new_chat : assets.new_chat_disabled}
 					/>
 					{!expand && (
 						<span className='absolute w-max -top-12 -right-12 opacity-0 group-hover:opacity-100 transition bg-black text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none'>
@@ -105,7 +105,7 @@ export const Sidebar = ({ expand, setExpand }: SidebarProps) => {
 					<Image
 						alt='profile'
 						className='w-7'
-						src={assets.profile_icon}
+						src={assets.profile}
 					/>
 				)}
 				{expand && <span>Mi Perfil</span>}

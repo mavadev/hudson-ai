@@ -1,25 +1,37 @@
 'use client';
 
 import { useUser } from '@clerk/nextjs';
-import { createContext, useContext, useState, useEffect, PropsWithChildren, useCallback } from 'react';
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useState,
+	type PropsWithChildren,
+	type Dispatch,
+	type SetStateAction,
+} from 'react';
 
-import { ChatItem, ChatType } from '@/interfaces/Chat';
+import type { Chat, ChatType } from '@/interfaces/Chat';
+import type { Message } from '@/interfaces/Message';
 import * as chatService from '@/services/chatService';
-import { Message } from '@/interfaces/Message';
 
-// Definimos la interface del contexto
+type ChatUpdater = (chat: Chat) => Chat;
+
 interface AppContextProps {
 	type: ChatType;
-	setType: React.Dispatch<React.SetStateAction<ChatType>>;
-	chats: ChatItem[];
-	setChats: React.Dispatch<React.SetStateAction<ChatItem[]>>;
-	selectedChat: ChatItem | null;
-	setSelectedChat: React.Dispatch<React.SetStateAction<ChatItem | null>>;
+	setType: Dispatch<SetStateAction<ChatType>>;
+
+	chats: Chat[];
+	selectedChat: Chat | null;
+	setSelectedChat: Dispatch<SetStateAction<Chat | null>>;
 
 	fetchChats: () => Promise<void>;
 	createNewChat: () => Promise<void>;
 	renameExistingChat: (chatId: string, name: string) => Promise<void>;
 	deleteExistingChat: (chatId: string) => Promise<void>;
+	updateChatLocally: (chatId: string, updater: ChatUpdater) => void;
+
 	sendPromptToAI: (
 		chatId: string,
 		prompt: string,
@@ -27,84 +39,102 @@ interface AppContextProps {
 	) => Promise<{ message: Message; title?: string }>;
 }
 
-// Creamos el contexto
-const AppContext = createContext<AppContextProps>({} as AppContextProps);
-export const useAppContext = () => useContext(AppContext); // Hook del contexto
+const AppContext = createContext<AppContextProps | null>(null);
+
+export const useAppContext = () => {
+	const context = useContext(AppContext);
+
+	if (!context) {
+		throw new Error('useAppContext debe utilizarse dentro de AppContextProvider');
+	}
+
+	return context;
+};
 
 export const AppContextProvider = ({ children }: PropsWithChildren) => {
 	const { user, isLoaded } = useUser();
 
-	const [chats, setChats] = useState<ChatItem[]>([]);
-	const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
+	const [chats, setChats] = useState<Chat[]>([]);
+	const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
 	const [type, setType] = useState<ChatType>('general');
 
-	// Obtener chats
+	const updateChatLocally = useCallback((chatId: string, updater: ChatUpdater) => {
+		setChats(previousChats => previousChats.map(chat => (chat._id === chatId ? updater(chat) : chat)));
+
+		setSelectedChat(previousChat => (previousChat?._id === chatId ? updater(previousChat) : previousChat));
+	}, []);
+
 	const fetchChats = useCallback(async () => {
 		if (!user) return;
 
 		try {
 			const data = await chatService.getChats();
+
 			setChats(data);
 
-			if (data.length === 0) {
-				await createNewChat();
-				return fetchChats();
-			}
+			setSelectedChat(currentChat => {
+				if (data.length === 0) return null;
 
-			setSelectedChat(prev => prev || data[0] || null);
+				const updatedSelectedChat = data.find(chat => chat._id === currentChat?._id);
+
+				return updatedSelectedChat ?? data[0];
+			});
 		} catch (error) {
 			console.error('Error fetching chats:', error);
 		}
 	}, [user]);
 
-	// Crear chat
 	const createNewChat = useCallback(async () => {
-		await chatService.createChat();
-		await fetchChats();
-	}, [fetchChats]);
+		if (!user) return;
 
-	// Renombrar chat
+		const newChat = await chatService.createChat();
+
+		setChats(previousChats => [newChat, ...previousChats]);
+		setSelectedChat(newChat);
+	}, [user]);
+
 	const renameExistingChat = useCallback(
 		async (chatId: string, name: string) => {
-			// Renombramos el chat en local
-			setSelectedChat(
-				prev =>
-					prev && {
-						...prev,
-						name,
-					},
-			);
-
-			// Renombramos el chat en la base de datos
 			await chatService.renameChat(chatId, name);
-			await fetchChats();
+
+			updateChatLocally(chatId, chat => ({
+				...chat,
+				name,
+			}));
 		},
-		[fetchChats],
+		[updateChatLocally],
 	);
 
-	// Eliminar chat
-	const deleteExistingChat = useCallback(
-		async (chatId: string) => {
-			// Eliminar el chat seleccionado localmente
-			setSelectedChat(prev => (prev?._id === chatId ? null : prev));
-			setChats(prev => prev.filter(chat => chat._id !== chatId));
-
-			// Eliminar el chat de la base de datos
+	const deleteExistingChat = useCallback(async (chatId: string) => {
+		try {
 			await chatService.deleteChat(chatId);
-			await fetchChats();
-		},
-		[fetchChats],
-	);
 
-	// Enviar prompt a IA
+			setChats(previousChats => {
+				const remainingChats = previousChats.filter(chat => chat._id !== chatId);
+
+				setSelectedChat(currentChat => {
+					if (currentChat?._id !== chatId) {
+						return currentChat;
+					}
+
+					return remainingChats[0] ?? null;
+				});
+
+				return remainingChats;
+			});
+		} catch (error) {
+			console.error('Error deleting chat:', error);
+			throw error;
+		}
+	}, []);
+
 	const sendPromptToAI = useCallback(
 		async (chatId: string, prompt: string, typePrompt: ChatType): Promise<{ message: Message; title?: string }> => {
-			return await chatService.sendPrompt(chatId, prompt, typePrompt);
+			return chatService.sendPrompt(chatId, prompt, typePrompt);
 		},
 		[],
 	);
 
-	// Cargar los chats al iniciar cuando el usuario esté cargado
 	useEffect(() => {
 		if (isLoaded && user) {
 			fetchChats();
@@ -117,13 +147,13 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
 				type,
 				setType,
 				chats,
-				setChats,
 				selectedChat,
 				setSelectedChat,
 				fetchChats,
 				createNewChat,
 				renameExistingChat,
 				deleteExistingChat,
+				updateChatLocally,
 				sendPromptToAI,
 			}}>
 			{children}

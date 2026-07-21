@@ -2,7 +2,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { memo, useCallback } from 'react';
 
-import { assets } from '@/assets/assets';
+import assets from '@/assets';
 import { useAppContext } from '@/context/AppContext';
 
 interface ChatLabelProps {
@@ -76,7 +76,7 @@ const ChatLabelComponent = ({ openMenu, setOpenMenu, id, name }: ChatLabelProps)
 						<Image
 							alt='rename'
 							className='w-4'
-							src={assets.pencil_icon}
+							src={assets.edit}
 						/>
 						<span>Renombrar</span>
 					</button>
@@ -87,7 +87,7 @@ const ChatLabelComponent = ({ openMenu, setOpenMenu, id, name }: ChatLabelProps)
 						<Image
 							alt='delete'
 							className='w-4'
-							src={assets.delete_icon}
+							src={assets.remove}
 						/>
 						<span>Eliminar</span>
 					</button>

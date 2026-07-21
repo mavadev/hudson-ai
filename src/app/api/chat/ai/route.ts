@@ -3,74 +3,115 @@ import { getAuth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 import connectDB from '@/config/db';
-import { ChatType } from '@/interfaces/Chat';
-import Chat, { IMessage } from '@/models/Chat';
+import type { ChatType } from '@/interfaces/Chat';
+import Chat, { type IMessage } from '@/models/Chat';
 
-// Definimos el tipo del body
 interface ChatRequestBody {
 	chatId: string;
 	prompt: string;
 	type: ChatType;
-	userId: string;
 }
+
+const validChatTypes: ChatType[] = ['general', 'qa'];
 
 export async function POST(req: NextRequest) {
 	try {
 		const { userId } = getAuth(req);
+
 		if (!userId) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 		}
 
-		// Obtenemos el body
-		const { chatId, prompt: userMessage, type }: ChatRequestBody = await req.json();
+		const body: ChatRequestBody = await req.json();
+		const chatId = body.chatId;
+		const prompt = body.prompt?.trim();
+		const type = body.type;
+
+		if (!chatId || !prompt || !validChatTypes.includes(type)) {
+			return NextResponse.json({ error: 'Datos de la solicitud inválidos' }, { status: 400 });
+		}
+
+		const apiUrl = process.env.API_URL;
+
+		if (!apiUrl) {
+			throw new Error('API_URL no está definida');
+		}
 
 		await connectDB();
 
-		// Obtenemos el chat correspondiente al usuario
-		const chat = await Chat.findOne({ _id: chatId, user: userId });
+		const chat = await Chat.findOne({
+			_id: chatId,
+			user: userId,
+		});
+
 		if (!chat) {
 			return NextResponse.json({ error: 'Chat no encontrado' }, { status: 404 });
 		}
 
 		const isFirstMessage = chat.messages.length === 0;
 
-		// Creamos el mensaje del usuario
-		const userPrompt: IMessage = {
+		const userMessage: IMessage = {
 			role: 'user',
-			content: userMessage,
-			timestamp: new Date(),
+			content: prompt,
+			timestamp: Date.now(),
 		};
-		chat.messages.push(userPrompt);
 
-		// Llamamos a la IA para respuesta
-		const {
-			data: { response: assistantResponse },
-		} = await axios.post<{ response: string }>(`${process.env.API_URL}/chat/${type}`!, {
-			user_message: userMessage,
+		chat.messages.push(userMessage);
+
+		const aiResponse = await axios.post<{ response: string }>(`${apiUrl}/chat/${type}`, {
+			user_message: prompt,
 		});
+
+		const assistantContent = aiResponse.data.response?.trim();
+
+		if (!assistantContent) {
+			throw new Error('El servicio de IA devolvió una respuesta vacía');
+		}
 
 		const assistantMessage: IMessage = {
 			role: 'assistant',
-			content: assistantResponse,
-			timestamp: new Date(),
+			content: assistantContent,
+			timestamp: Date.now(),
 		};
+
 		chat.messages.push(assistantMessage);
 
+		let generatedTitle: string | undefined;
+
 		if (isFirstMessage) {
-			const {
-				data: { response: titleResponse },
-			} = await axios.post<{ response: string }>(`${process.env.API_URL}/chat/general`!, {
-				user_message:
-					'Dime en un titulo corto para el inicio de esta conversación (solo el titulo sin comillas): ' +
-					assistantResponse,
+			const titleResponse = await axios.post<{ response: string }>(`${apiUrl}/chat/general`, {
+				user_message: [
+					'Genera un título breve para esta conversación.',
+					'Devuelve únicamente el título, sin comillas ni explicaciones.',
+					`Conversación: ${prompt}`,
+				].join('\n'),
 			});
-			chat.name = titleResponse;
+
+			generatedTitle =
+				titleResponse.data.response
+					?.replace(/^["']|["']$/g, '')
+					.trim()
+					.slice(0, 80) || 'Nueva conversación';
+
+			chat.name = generatedTitle;
 		}
 
 		await chat.save();
-		return NextResponse.json({ message: assistantMessage, title: chat.name }, { status: 200 });
-	} catch (error: unknown) {
-		console.error('Error procesando el chat:', error);
-		return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+
+		return NextResponse.json(
+			{
+				message: assistantMessage,
+				...(generatedTitle && { title: generatedTitle }),
+			},
+			{ status: 200 },
+		);
+	} catch (error) {
+		if (axios.isAxiosError(error)) {
+			console.error('Error comunicándose con el servicio de IA:', error.response?.data ?? error.message);
+		} else {
+			console.error('Error procesando el chat:', error);
+		}
+
+		return NextResponse.json({ error: 'No se pudo procesar el mensaje' }, { status: 500 });
 	}
 }
