@@ -1,35 +1,43 @@
-import { getAuth } from '@clerk/nextjs/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { getAuth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
 
-import connectDB from '@/config/db';
-import Chat from '@/models/Chat';
+import connectDB from "@/config/db";
+import Chat from "@/models/Chat";
 
 export async function POST(req: NextRequest) {
-	try {
-		const { userId } = getAuth(req);
+  try {
+    // Obtenemos el id del usuario
+    const { userId } = getAuth(req);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuario no autenticado" },
+        { status: 401 },
+      );
+    }
 
-		if (!userId) {
-			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-		}
+    // Conexión a la DB
+    await connectDB();
 
-		await connectDB();
+    // Creación del chat
+    const newChat = await Chat.create({
+      name: "",
+      messages: [],
+      userId,
+    });
 
-		const newChat = await Chat.create({
-			name: 'Nuevo Chat',
-			messages: [],
-			user: userId,
-		});
-
-		return NextResponse.json(
-			{
-				message: 'Chat creado exitosamente',
-				data: newChat,
-			},
-			{ status: 201 },
-		);
-	} catch (error) {
-		console.error('Error al crear el chat:', error);
-
-		return NextResponse.json({ error: 'No se pudo crear el chat' }, { status: 500 });
-	}
+    // Respuesta exitosa
+    return NextResponse.json(
+      {
+        message: "Chat creado correctamente",
+        chat: newChat,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("Error al crear un nuevo chat:", error);
+    return NextResponse.json(
+      { error: "No se pudo crear un nuevo chat" },
+      { status: 500 },
+    );
+  }
 }
