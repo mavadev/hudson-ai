@@ -1,6 +1,6 @@
 // Branding
 import hudson_logo from './branding/hudson-logo.svg';
-import hudson_white from './branding/hudson-white.svg';
+import hudson_name from './branding/hudson-name.svg';
 
 // Actions
 import copy from './icons/actions/copy.svg';
@@ -30,7 +30,7 @@ import sidebar_close from './icons/navigation/sidebar-close.svg';
 
 export default {
 	hudson_logo,
-	hudson_white,
+	hudson_name,
 	copy,
 	edit,
 	remove,
