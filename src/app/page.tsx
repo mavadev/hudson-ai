@@ -2,15 +2,17 @@
 import { useState } from "react";
 import { useAppContext } from "@/context/AppContext";
 
-import { Sidebar } from "@/components/sidebar/Sidebar";
-import { ChatHeader } from "@/components/chat/ChatHeader";
-import { EmptyState } from "@/components/chat/EmptyState";
-import { Conversation } from "@/components/chat/Conversation";
-import { PromptBox } from "@/components/chat/PromptBox";
-import { Footer } from "@/components/layout/Footer";
+import { Sidebar } from "@/components/sidebar";
+import {
+  ChatHeader,
+  EmptyState,
+  Conversation,
+  PromptBox,
+} from "@/components/chat";
+import { Footer } from "@/components/layout";
 
 export default function Home() {
-  const { selectedChat, isLoading } = useAppContext();
+  const { selectedChat, isGenerating } = useAppContext();
 
   const [expand, setExpand] = useState(false);
   const messages = selectedChat?.messages ?? [];
@@ -22,21 +24,28 @@ export default function Home() {
         onToggleSidebar={() => setExpand((exp) => !exp)}
       />
 
-      <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[#141414] text-white">
+      <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-bg-main text-text-main">
+        {/* Backdrop para cerrar la Sidebar en pantallas pequeñas */}
+        {expand && (
+          <div
+            className="fixed inset-0 z-20 bg-black/50 md:hidden"
+            onClick={() => setExpand(false)}
+          />
+        )}
         {/* Encabezado móvil */}
         <ChatHeader
           chatName={selectedChat?.name}
-          onToggleSidebar={() => setExpand((exp) => !exp)}
+          openSidebar={() => setExpand(true)}
         />
-
         {/* Contenido central */}
         {messages.length === 0 ? (
           <EmptyState />
         ) : (
-          <Conversation messages={messages} isLoading={isLoading} />
+          <Conversation messages={messages} isGenerating={isGenerating} />
         )}
-
+        {/* PromptBox para enviar prompts al modelo */}
         <PromptBox />
+        {/* Footer */}
         <Footer />
       </main>
     </div>
