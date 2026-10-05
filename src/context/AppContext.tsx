@@ -1,5 +1,6 @@
 "use client";
 
+import toast from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import {
   createContext,
@@ -10,32 +11,41 @@ import {
   type Dispatch,
   type SetStateAction,
   type PropsWithChildren,
+  useRef,
 } from "react";
 
 import type { Message } from "@/interfaces/Message";
 import type { Chat } from "@/interfaces/Chat";
 import * as chatService from "@/services/chatService";
 import { storageService } from "@/services/storageService";
-import toast from "react-hot-toast";
 
 type ChatUpdater = (chat: Chat) => Chat;
 
 interface AppContextProps {
+  // Chats
   chats: Chat[];
   selectedChat: Chat | null;
   setSelectedChat: Dispatch<SetStateAction<Chat | null>>;
-  isLoading: boolean;
 
-  fetchChats: () => Promise<void>;
-  createNewChat: () => Promise<Chat>;
-  renameExistingChat: (chatId: string, name: string) => Promise<void>;
-  deleteExistingChat: (chatId: string) => Promise<void>;
-  updateChatLocally: (chatId: string, updater: ChatUpdater) => void;
+  // Loaders
+  isGenerating: boolean;
+  fetchingChats: boolean;
 
+  // Acciones Generales
   sendPrompt: (
     prompt: string,
     onChunk?: (chunk: string) => void,
   ) => Promise<void>;
+  stopGenerating: () => void;
+
+  // Acciones Invitado
+  clearChatGuest: () => void;
+
+  // Acciones Autenticado
+  prepareNewChat: () => void;
+  renameExistingChat: (chatId: string, name: string) => Promise<void>;
+  updateChatLocally: (chatId: string, updater: ChatUpdater) => void;
+  deleteExistingChat: (chatId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextProps | null>(null);
@@ -55,7 +65,10 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [fetchingChats, setIsFetchingChats] = useState<boolean>(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Actualizar un chat en memoria como en selección
   const updateChatLocally = useCallback(
@@ -72,10 +85,18 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
     [],
   );
 
+  //
+  const stopGenerating = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsGenerating(false);
+    }
+  }, []);
+
   // Cargar chats
   const fetchChats = useCallback(async () => {
     console.log("Fetching chats...");
-    setIsLoading(true);
+    setIsGenerating(true);
 
     try {
       if (user) {
@@ -89,22 +110,20 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
             : (remoteChats[0] ?? null),
         );
       } else {
-        const guestChats = storageService.getGuestChats();
-        setChats(guestChats);
-        setSelectedChat((prev) =>
-          prev
-            ? (guestChats.find((c) => c._id === prev._id) ??
-              guestChats[0] ??
-              null)
-            : (guestChats[0] ?? null),
-        );
+        const guestChat = storageService.getGuestChat();
+        setSelectedChat(guestChat || null);
       }
     } catch (error) {
       console.error("Error al obtener historial de chats:", error);
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   }, [user]);
+
+  // Abrir un nuevo chat (sin crearlo)
+  const prepareNewChat = useCallback(() => {
+    setSelectedChat(null);
+  }, []);
 
   // Crear un nuevo chat explícito
   const createNewChat = useCallback(async () => {
@@ -122,7 +141,6 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
         createdAt: new Date().toISOString(),
       };
       storageService.saveGuestChat(newGuestChat);
-      setChats((prev) => [newGuestChat, ...prev]);
       setSelectedChat(newGuestChat);
       return newGuestChat;
     }
@@ -135,11 +153,7 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
       if (user) {
         await chatService.renameChat(chatId, name);
       }
-      updateChatLocally(chatId, (chat) => {
-        const updated = { ...chat, name };
-        if (!user) storageService.saveGuestChat(updated);
-        return updated;
-      });
+      updateChatLocally(chatId, (chat) => ({ ...chat, name }));
     },
     [user, updateChatLocally],
   );
@@ -150,10 +164,7 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
       console.log("Deleting chat...");
       if (user) {
         await chatService.deleteChat(chatId);
-      } else {
-        storageService.deleteGuestChat(chatId);
       }
-
       setChats((prev) => {
         const remaining = prev.filter((c) => c._id !== chatId);
         setSelectedChat((curr) =>
@@ -165,11 +176,22 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
     [user],
   );
 
+  const clearChatGuest = useCallback(() => {
+    const confirmDelete = window.confirm(
+      "¿Estás seguro de eliminar este chat?",
+    );
+    if (confirmDelete) {
+      prepareNewChat();
+      storageService.deleteGuestChat();
+      toast.success("Chat reseteado con éxito");
+    }
+  }, [prepareNewChat]);
+
   // Enviar mensaje a la IA
   const sendPrompt = useCallback(
     async (prompt: string, onChunk?: (chunk: string) => void) => {
       console.log("Sending prompt...");
-      setIsLoading(true);
+      setIsGenerating(true);
 
       let activeChat = selectedChat;
 
@@ -207,6 +229,10 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
         return updated;
       });
 
+      // Crear nuevo AbortController para esta petición
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       // Petición a la API (Streaming)
       let accumulatedText = "";
       try {
@@ -235,9 +261,21 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
               return updated;
             });
           },
+          controller.signal,
         );
       } catch (error) {
-        console.error("Error al transmitir respuesta:", error);
+        let finalResponse = accumulatedText.trim();
+
+        // Manejar cancelación voluntaria de la petición
+        if (error instanceof Error && error.name === "AbortError") {
+          console.log("Generación cancelada por el usuario.");
+          if (!finalResponse)
+            finalResponse = "Respuesta cancelada por el usuario.";
+        } else {
+          console.error("Error al transmitir respuesta:", error);
+          if (!finalResponse)
+            finalResponse = "No se pudo obtener una respuesta del asistente.";
+        }
 
         // En caso de error, puedes limpiar o colocar un mensaje de fallo en el aiMessage
         updateChatLocally(chatId, (chat) => {
@@ -245,8 +283,7 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
             m._id === aiMessageId
               ? {
                   ...m,
-                  content:
-                    "Ocurrió un error al generar la respuesta. Intenta de nuevo.",
+                  content: finalResponse,
                 }
               : m,
           );
@@ -255,7 +292,8 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
           return updated;
         });
       } finally {
-        setIsLoading(false);
+        abortControllerRef.current = null;
+        setIsGenerating(false);
       }
     },
     [selectedChat, createNewChat, updateChatLocally, user],
@@ -266,66 +304,54 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
     if (!isLoaded) return;
 
     const handleChatsFlow = async () => {
-      const GUEST_KEY = "hudson_guest_chats";
+      if (!user) return await fetchChats();
 
-      // Sincronizar usuario y chats de local
-      console.log({ user });
-      if (user) {
-        console.log(
-          `[AppContext] Sincronizando usuario ${user.id} y chats locales.`,
-        );
-        try {
-          const localData = localStorage.getItem(GUEST_KEY);
-          const guestChats = localData ? JSON.parse(localData) : [];
+      try {
+        setIsFetchingChats(true);
 
-          console.log(
-            `[AppContext] Chats locales cargados: ${guestChats.length}`,
-          );
+        // Verificar si hay chat local
+        const guestChat = storageService.getGuestChat();
+        const hasGuestMessages = guestChat && guestChat.messages.length > 0;
 
-          // Sincronizamos los chats en local y el usuario en la DB
-          await fetch("/api/chat/sync", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              guestChats,
-              userData: {
-                email: user.primaryEmailAddress?.emailAddress,
-                name: user.fullName || user.username,
-                avatar: user.imageUrl,
-              },
-            }),
-          });
+        // Sincronizamos el usuario en la DB y el chat local
+        await fetch("/api/chat/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            guestChat: hasGuestMessages ? guestChat : null,
+          }),
+        });
 
-          console.log(`[AppContext] Sincronización completada.`);
-
-          // Si había chats de invitado guardados, limpiamos localStorage
-          if (guestChats.length > 0) {
-            localStorage.removeItem(GUEST_KEY);
-            console.log(
-              `[AppContext] Se eliminaron ${guestChats.length} chats locales.`,
-            );
-          }
-        } catch (error) {
-          console.error("Error en el flujo de usuario autenticado:", error);
-          toast.error("Error al cargar chats. Por favor, intenta nuevamente.");
+        // Limpiamos el chat en local
+        if (guestChat) {
+          storageService.deleteGuestChat();
         }
+        await fetchChats();
+        console.log(`[AppContext] Sincronización completada.`);
+      } catch (error) {
+        console.error("Error durante la sincronización inicial:", error);
+        toast.error(
+          "Error durante la sincronización. Por favor, intenta nuevamente.",
+        );
+      } finally {
+        setIsFetchingChats(false);
       }
-      await fetchChats();
     };
 
     handleChatsFlow();
   }, [isLoaded, user, fetchChats]);
-
   return (
     <AppContext.Provider
       value={{
         chats,
         selectedChat,
         setSelectedChat,
-        isLoading,
+        isGenerating,
+        fetchingChats,
         sendPrompt,
-        fetchChats,
-        createNewChat,
+        stopGenerating,
+        clearChatGuest,
+        prepareNewChat,
         renameExistingChat,
         deleteExistingChat,
         updateChatLocally,
