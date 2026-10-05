@@ -1,69 +1,65 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 import connectDB from "@/config/db";
-import { Chat, IChat } from "@/models/Chat";
-import { IMessage } from "@/models/Message";
 import User from "@/models/User";
-import { Playwrite_CL_Guides } from "next/font/google";
+import Chat from "@/models/Chat";
+import { IMessage } from "@/models/Message";
 
-interface SyncRequestBody {
-  guestChats: IChat[];
-  userData: {
-    email: string;
-    name: string;
-    avatar?: string;
-  };
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
+    const { userId } = await auth();
+    const clerkUser = await currentUser();
+    if (!userId || !clerkUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    const { guestChats, userData }: SyncRequestBody = await req.json();
 
-    // Conexión a la DB
     await connectDB();
 
-    // Aseguramos la existencia del usuario en la DB
+    // Siempre evaluamos la creación/actualización del usuario
+    const email = clerkUser.emailAddresses[0]?.emailAddress;
     await User.findByIdAndUpdate(
       userId,
       {
-        email: userData?.email,
-        name: userData?.name,
-        avatar: userData?.avatar || "",
+        $set: {
+          email: email,
+          name: clerkUser.fullName || clerkUser.username || "Usuario",
+          avatar: clerkUser.imageUrl || "",
+        },
       },
       { upsert: true, new: true },
     );
 
-    // Si hay chats de invitados lo guardamos en la DB
-    if (Array.isArray(guestChats) && guestChats.length > 0) {
-      const chatsToInsert = guestChats.map((chat) => ({
-        _id: chat._id,
-        name: chat.name,
-        messages: chat.messages.map((m: IMessage) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp || Date.now().toString(),
-        })),
-        userId,
-        createdAt: chat.createdAt,
+    // Evaluamos si hay un chat en local
+    const { guestChat } = await req.json();
+
+    let createdChat = null;
+    if (guestChat) {
+      // Mensajes sin _ids
+      const messages: IMessage[] = guestChat.messages.map((m: IMessage) => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp,
       }));
 
-      console.log(chatsToInsert);
-
-      // Insertamos todos los chats en MongoDB
-      await Chat.insertMany(chatsToInsert);
+      // Sincronizamos el chat en la DB
+      createdChat = await Chat.create({
+        userId,
+        name: guestChat.name,
+        messages,
+        createdAt: guestChat.createdAt,
+      });
     }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      userSynced: true,
+      chatSynced: !!createdChat,
+      chatId: createdChat?._id || null,
+    });
   } catch (error) {
-    const message = typeof error === "string" ? error : JSON.stringify(error);
-    console.error("Error al sincronizar chats:", message);
+    console.error("Error al sincronizar:", error);
     return NextResponse.json(
-      { error: "Error interno al sincronizar chats" },
+      { error: "Error interno al sincronizar" },
       { status: 500 },
     );
   }

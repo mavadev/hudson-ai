@@ -19,11 +19,7 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     // Creación del chat
-    const newChat = await Chat.create({
-      name: "",
-      messages: [],
-      userId,
-    });
+    const newChat = await Chat.create({ userId });
 
     // Respuesta exitosa
     return NextResponse.json(

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     // Obtener los chats del usuario ordenados por fecha de actualización
-    const chats = await Chat.find({ userId }).sort({ updatedAt: -1 });
+    const chats = await Chat.find({ userId }).sort({ updatedAt: -1 }).lean();
 
     return NextResponse.json({ chats }, { status: 200 });
   } catch (error: unknown) {
