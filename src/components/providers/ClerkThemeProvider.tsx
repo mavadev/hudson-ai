@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
-import { dark, light } from "@clerk/themes";
+import { dark } from "@clerk/themes";
 
 export const ClerkThemeProvider = ({
   children,
@@ -31,7 +31,7 @@ export const ClerkThemeProvider = ({
   return (
     <ClerkProvider
       appearance={{
-        baseTheme: isDark ? dark : light,
+        baseTheme: isDark ? dark : undefined,
         elements: {
           card: "border border-black/10 dark:border-white/10 shadow-2xl rounded-2xl bg-bg-sidebar",
           headerTitle: "text-text-main font-bold",
