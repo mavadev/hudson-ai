@@ -14,12 +14,10 @@ export interface IChat extends Document {
 // Creación del esquema de chat
 const ChatSchema = new Schema<IChat>(
   {
-    _id: { type: String, required: true, unique: true },
     name: {
       type: String,
-      required: true,
       trim: true,
-      default: "Nuevo chat",
+      default: "",
     },
     messages: {
       type: [MessageSchema],
