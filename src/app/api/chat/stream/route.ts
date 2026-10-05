@@ -30,8 +30,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Conexión a la base de datos
-    await connectDB();
     const { userId } = getAuth(req);
 
     let isFirstMessage = false;
@@ -39,6 +37,8 @@ export async function POST(req: NextRequest) {
 
     // Obtenemos si es el primer mensaje y los mensajes (historial)
     if (userId) {
+      await connectDB();
+
       const chat = await Chat.findOne({ _id: chatId, userId });
       if (!chat) {
         return NextResponse.json(
