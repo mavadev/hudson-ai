@@ -54,10 +54,11 @@ src/
 Crea un archivo `.env` con las siguientes variables:
 
 ```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
 MONGODB_URI=your_mongodb_connection_string
-BACKEND_API_URL=http://localhost:8000
+CLERK_WEBHOOK_SECRET=your_clerk_webhook
+CLERK_SECRET_KEY=your_clerk_secret_key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+API_URL=http://localhost:8000
 ```
 
 ## 💻 Instalación local
