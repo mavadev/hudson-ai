@@ -4,7 +4,6 @@ import toast from "react-hot-toast";
 
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
 
 import assets from "@/assets";
@@ -120,30 +119,20 @@ export const MessageBox = ({ role, content }: MessageProps) => {
             <>
               <Markdown
                 remarkPlugins={[remarkGfm]}
-                rehypePlugins={[
-                  rehypeHighlight,
-                  [
-                    rehypeSanitize,
-                    {
-                      attributes: {
-                        "*": ["className"],
-                      },
-                    },
-                  ],
-                ]}
+                rehypePlugins={[rehypeHighlight]}
                 components={{
                   h1: ({ children }) => (
-                    <h1 className="text-2xl font-bold text-text-main mt-4 mb-2">
+                    <h1 className="text-2xl font-bold text-text-main mt-6 mb-3">
                       {children}
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-xl font-semibold text-text-main mt-5 mb-2 border-b border-white/10 pb-1">
+                    <h2 className="text-xl font-semibold text-text-main mt-6 mb-2">
                       {children}
                     </h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="text-lg font-semibold text-text-main mt-4 mb-1">
+                    <h3 className="text-lg font-semibold text-text-main mt-4 mb-2">
                       {children}
                     </h3>
                   ),
@@ -218,7 +207,7 @@ export const MessageBox = ({ role, content }: MessageProps) => {
                     </ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="list-decimal list-inside space-y-1.5 my-3 text-text-main pl-1">
+                    <ol className="list-decimal list-outside space-y-1.5 my-3 text-text-main pl-6">
                       {children}
                     </ol>
                   ),
@@ -249,7 +238,7 @@ export const MessageBox = ({ role, content }: MessageProps) => {
                   ),
                 }}
               >
-                {content}
+                {content?.replace(/([^\n])\n?(#{1,6}\s)/g, "$1\n\n$2")}
               </Markdown>
 
               {/* Acciones para el mensaje de la IA */}

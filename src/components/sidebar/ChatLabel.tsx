@@ -36,7 +36,7 @@ const ChatLabelComponent = ({
   }, [chats, id, setSelectedChat]);
 
   const handleRename = useCallback(async () => {
-    const newTitle = prompt("Ingresa un nuevo nombre:");
+    const newTitle = prompt("Ingresa un nuevo nombre:", selectedChat?.name);
     if (!newTitle?.trim()) return;
 
     try {

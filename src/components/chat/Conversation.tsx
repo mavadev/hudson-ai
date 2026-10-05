@@ -59,7 +59,7 @@ export const Conversation = ({ messages, isGenerating }: ConversationProps) => {
       ref={containerRef}
       onScroll={handleScroll}
       aria-label="Conversación actual"
-      className="relative min-h-0 w-full flex-1 overflow-y-auto px-4 scroll-smooth"
+      className="relative mt-20 min-h-0 w-full flex-1 overflow-y-auto px-4 scroll-smooth"
     >
       {/* Listado de Mensajes */}
       <div className="pb-20 mx-auto w-full max-w-4xl flex flex-col gap-8">

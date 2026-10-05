@@ -12,7 +12,7 @@ export const ChatHeader = ({ chatName, openSidebar }: ChatHeaderProps) => {
   return (
     <>
       {/* Encabezado Móvil */}
-      <header className="realtive h-20 z-10 md:hidden w-full px-4 flex items-center gap-3">
+      <header className="absolute top-0 left-0 h-20 z-10 md:hidden w-full px-4 flex items-center gap-3">
         <button
           type="button"
           onClick={openSidebar}
@@ -29,7 +29,7 @@ export const ChatHeader = ({ chatName, openSidebar }: ChatHeaderProps) => {
 
       {/* Nombre del Chat Actual */}
       {chatName && (
-        <div className="relative w-full z-10 px-4 hidden md:block">
+        <div className="absolute top-0 left-0 w-full z-10 px-4 hidden md:block">
           <div className="max-w-4xl mx-auto h-20 flex items-center justify-end">
             <div className="absolute left-1/2 top-6 -translate-x-1/2  bg-bg-sidebar/80 backdrop-blur-md border border-white/5 px-4 py-1 rounded-full shadow-sm">
               <p className="max-w-xs truncate text-base font-medium text-text-main">

@@ -37,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
+        suppressHydrationWarning
         className={`${inter.variable} antialiased bg-bg-main text-text-main min-h-screen`}
       >
         <ClerkThemeProvider>

@@ -99,19 +99,12 @@ export const AppContextProvider = ({ children }: PropsWithChildren) => {
     setIsGenerating(true);
 
     try {
-      if (user) {
-        const remoteChats = await chatService.getChats();
-        setChats(remoteChats);
-        setSelectedChat((prev) =>
-          prev
-            ? (remoteChats.find((c) => c._id === prev._id) ??
-              remoteChats[0] ??
-              null)
-            : (remoteChats[0] ?? null),
-        );
-      } else {
+      if (!user) {
         const guestChat = storageService.getGuestChat();
         setSelectedChat(guestChat || null);
+      } else {
+        const remoteChats = await chatService.getChats();
+        setChats(remoteChats);
       }
     } catch (error) {
       console.error("Error al obtener historial de chats:", error);
