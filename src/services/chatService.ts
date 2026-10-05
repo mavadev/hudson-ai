@@ -1,11 +1,26 @@
-import axios from "axios";
 import { Chat } from "@/interfaces/Chat";
 import { Message } from "@/interfaces/Message";
+
+// Helper interno para peticiones JSON con fetch nativo
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
 
 // OBTENER CHATS
 export const getChats = async (): Promise<Chat[]> => {
   try {
-    const { data } = await axios.get(`/api/chat/get`);
+    const data = await fetchJson<{ chats: Chat[] }>(`/api/chat/get`);
     return data.chats;
   } catch {
     throw new Error(`Error al obtener los chats del usuario`);
@@ -15,7 +30,9 @@ export const getChats = async (): Promise<Chat[]> => {
 // CREAR CHAT
 export const createChat = async (): Promise<Chat> => {
   try {
-    const { data } = await axios.post("/api/chat/create");
+    const data = await fetchJson<{ chat: Chat }>("/api/chat/create", {
+      method: "POST",
+    });
     return data.chat;
   } catch {
     throw new Error("Error al crear el chat");
@@ -28,7 +45,10 @@ export const renameChat = async (
   name: string,
 ): Promise<void> => {
   try {
-    await axios.post("/api/chat/rename", { chatId, name });
+    await fetchJson("/api/chat/rename", {
+      method: "POST",
+      body: JSON.stringify({ chatId, name }),
+    });
   } catch {
     throw new Error(`Hubo un error al renombrar el chat ${chatId}`);
   }
@@ -37,22 +57,12 @@ export const renameChat = async (
 // ELIMINAR CHAT POR ID
 export const deleteChat = async (chatId: string): Promise<void> => {
   try {
-    await axios.post("/api/chat/delete", { chatId });
+    await fetchJson("/api/chat/delete", {
+      method: "POST",
+      body: JSON.stringify({ chatId }),
+    });
   } catch {
     throw new Error(`Hubo un error al eliminar el chat ${chatId}`);
-  }
-};
-
-// PETICIÓN ESTANDAR
-export const sendPrompt = async (
-  prompt: string,
-  chatId: string,
-): Promise<{ message: Message; title?: string }> => {
-  try {
-    const { data } = await axios.post("/api/chat/general", { prompt, chatId });
-    return data;
-  } catch {
-    throw new Error("Error al obtener respuesta de la IA");
   }
 };
 
@@ -63,11 +73,13 @@ export async function sendPromptStream(
   messages: Message[],
   onChunk: (chunk: string) => void,
   onTitleGenerated?: (title: string) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch("/api/chat/general/stream", {
+  const response = await fetch("/api/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, chatId, messages }),
+    signal,
   });
 
   if (!response.ok || !response.body) {
